@@ -17,27 +17,31 @@ const (
 	locked   = -1
 )
 
+// Locker is a spinlock-based implementation of sync.Locker.
 type Locker struct {
 	state int32
 }
 
-// LockDo is just a wrapper for `Lock` + `Unlock`. It lockes the locker, runs the function `fn` and unlockes the locker.
-//
-// Warning! The `fn()` should not panic, otherwise the locker won't be unlocked
+// LockDo is just a wrapper for `Lock` + `Unlock`.
+// It locks the locker, runs the function `fn` and then unlocks the locker.
 func (l *Locker) LockDo(fn func()) {
 	l.Lock()
+	defer l.Unlock()
+
 	fn()
-	l.Unlock()
 }
 
+// IsLocked returns true if the locker is currently locked.
 func (l *Locker) IsLocked() bool {
 	return atomic.LoadInt32(&l.state) == locked
 }
 
+// TryLock performs a non-blocking attempt to lock the locker and returns true if successful.
 func (l *Locker) TryLock() bool {
 	return atomic.CompareAndSwapInt32(&l.state, unlocked, locked)
 }
 
+// Lock waits until the locker with be unlocked (if it is not) and then locks it.
 func (l *Locker) Lock() {
 	i := 0
 	for !atomic.CompareAndSwapInt32(&l.state, unlocked, locked) {
@@ -50,13 +54,16 @@ func (l *Locker) Lock() {
 	}
 }
 
+// Unlock unlocks the locker.
 func (l *Locker) Unlock() {
 	if !atomic.CompareAndSwapInt32(&l.state, locked, unlocked) {
 		panic(`Unlock()-ing non-locked locker`)
 	}
 }
 
-// SetUnlocked resets the state of the locker. Use case: if you copy an object, you may want to reset this value.
+// SetUnlocked resets the state of the locker.
+//
+// Use case: if you copy an object, you may want to reset this value.
 func (l *Locker) SetUnlocked() {
 	atomic.StoreInt32(&l.state, unlocked)
 }
