@@ -9,7 +9,7 @@
 
 # spinlock
 
-This package implements `sync.Lock` as a spinlock.
+This package implements [`sync.Locker`](https://golang.org/pkg/sync/#Locker) as a spinlock.
 
 ```
 import (
